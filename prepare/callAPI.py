@@ -3,12 +3,18 @@ from datetime import date
 import pandas as pd
 import os
 
+# Thư mục lưu dữ liệu (có thể đổi tuỳ bạn)
+save_path = "./Dataset/Raw/"
+
+# Tạo thư mục nếu chưa có
+os.makedirs(save_path, exist_ok=True)
+
 # Lấy ticker của Google
 gg_stock = yf.Ticker("GOOGL")
 
 print("\n--- Dữ liệu 2021 đến 2025 ---")
 hist = gg_stock.history(start="2021-11-06", end="2025-11-07")
-hist.to_csv("GOOG_2025.csv")
+hist.to_csv(os.path.join(save_path, "GOOG_2025.csv"))
 
 # ============================
 # ETL - Tải dữ liệu cổ phiếu công nghệ Mỹ
@@ -21,13 +27,8 @@ tickers = ["AAPL", "MSFT", "AMZN", "NVDA"]
 start_date = "2016-01-01"
 end_date = "2025-11-07"
 
-# Thư mục lưu dữ liệu (có thể đổi tuỳ bạn)
-save_path = "./Dataset/Raw/"
-
-# Tạo thư mục nếu chưa có
-os.makedirs(save_path, exist_ok=True)
-
 # Tải và lưu từng mã cổ phiếu
+all_df = []
 for ticker in tickers:
     print(f"📈 Đang tải dữ liệu: {ticker}")
     
@@ -42,9 +43,13 @@ for ticker in tickers:
     df["Symbol"] = ticker
     
     # Lưu ra file CSV
-    file_path = os.path.join(save_path, f"{ticker}.csv")
-    df.to_csv(file_path, index=False)
-    
-    print(f"✅ Đã lưu {ticker} vào {file_path}")
+    all_df.append(df)
+    print(f"✅ Đã tải xong {ticker}, sẵn sàng để gộp.")
 
-print("\n🎯 Hoàn tất! Dữ liệu 4 mã đã được tải và lưu vào thư mục data_lake/")
+print("\n🔄 Đang gộp dữ liệu 4 mã...")    
+final_df = pd.concat(all_df, ignore_index=True)
+
+final_file_path = os.path.join(save_path, "bigTech.csv")
+final_df.to_csv(final_file_path, index=False)
+
+print("\n🎯 Hoàn tất! Dữ liệu 4 mã đã được tải và lưu vào thư mục Dataset/Raw/")

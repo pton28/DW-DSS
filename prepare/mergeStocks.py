@@ -3,7 +3,7 @@ import glob
 import os
 
 # --- 1️⃣ Đường dẫn và đầu ra ---
-data_path = "./Dataset/Raw"
+data_path = "./Dataset/Cleaned/"
 output_path = "./Data_warehouse/all_stocks.csv"
 os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
