@@ -1,0 +1,15 @@
+# Thư viện xử lý dữ liệu chính
+pandas
+numpy
+
+# Thư viện Database
+duckdb
+
+# Thư viện Machine Learning (cho KNNImputer, IterativeImputer trong transforming.py)
+scikit-learn
+
+# Thư viện phát hiện Encoding (cho extracting.py)
+charset-normalizer
+
+# Thư viện hỗ trợ đọc/ghi Parquet (Cần thiết cho loading.py dùng to_parquet)
+pyarrow
