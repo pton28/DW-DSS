@@ -10,39 +10,37 @@ os.makedirs(os.path.dirname(OUTPUT_DIR), exist_ok=True)
 
 csv_files = glob.glob(os.path.join(SOURCE_DIR, "**", "*.csv"), recursive=True)
 
+all_data = []
 def basic_cleaning(df):
-    """Làm sạch cơ bản để đưa lên Silver Zone."""
-    # Xóa duplicates
-    df = df.drop_duplicates()
-
-    # Xử lý NaN bằng forward-fill và back-fill
-    df = df.ffill().bfill()
-
-    # Chuẩn hóa tên cột
+    """Làm sạch cơ bản: Sort -> Dedup -> FillNA"""
+    # 1. Chuẩn hóa tên cột trước
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-
-    # Giữ lại các cột cần thiết (tên cột đã được chuyển về chữ thường)
-    keep_cols = ["date", "symbol", "open", "high", "low", "close", "volume"]
-    df = df[[c for c in keep_cols if c in df.columns]]
     
-    # Chuyển cột ngày về datetime nếu có
+    # 2. Chuyển đổi ngày
     date_cols = [col for col in df.columns if "date" in col]
     for col in date_cols:
-        try:
-            df[col] = pd.to_datetime(df[col], utc=True)
-        except:
-            pass
+        df[col] = pd.to_datetime(df[col], utc=True).dt.date # Bỏ múi giờ cho sạch
 
+    # 3. Sắp xếp TRƯỚC khi fillna (QUAN TRỌNG)
+    if 'date' in df.columns:
+        df = df.sort_values(by=['date'], ascending=True)
+
+    # 4. Xóa duplicates
+    df = df.drop_duplicates()
+
+    # 5. Xử lý NaN (Chỉ fill giá/volume, không fill chỉ báo sau này)
+    df = df.ffill() 
+    
     return df
 
 
 def inject_symbol_if_missing(df, file_path):
     """
-    LOGIC QUAN TRỌNG: Xử lý trường hợp file lẻ (GOOG.csv) không có cột Symbol.
+    LOGIC QUAN TRỌNG: Xử lý trường hợp file lẻ (GOOG_API.csv) không có cột Symbol.
     """
     if 'symbol' not in df.columns:
         file_name = os.path.basename(file_path)
-        symbol_name = os.path.splitext(file_name)[0].upper()
+        symbol_name = os.path.splitext(file_name).split('_')[0].upper()
         
         print(f"Không thấy cột Symbol. Tự động gán: {symbol_name}")
         df['symbol'] = symbol_name
@@ -59,6 +57,7 @@ def compute_technical_indicators(df_raw):
     """
     df = df_raw.copy()
 
+    df['return'] = df['close'].pct_change()
     # Tạo các chuỗi giá trị đã dịch chuyển (Shifted Series)
     # Tại index t, chúng ta chỉ biết giá đóng cửa của t-1
     close_t = df['close'].shift(1)
@@ -184,8 +183,6 @@ else:
             
             # 2. Làm sạch cơ bản
             clean_df = basic_cleaning(df)
-            
-            # 3. XỬ LÝ RIÊNG: Fill cột Symbol nếu thiếu
             clean_df = inject_symbol_if_missing(clean_df, file_path)
 
             # 4. Tạo Feature (Lúc này chắc chắn đã có symbol)
@@ -195,15 +192,20 @@ else:
             clean_df = create_targets(clean_df)
             clean_df.replace([np.inf, -np.inf, np.nan], 0, inplace=True)
 
-            # 6. Lưu file (Thêm hậu tố _cleaned để dễ phân biệt)
-            output_name = file_name.replace(".csv", "_cleaned.csv")
-            save_path = os.path.join(OUTPUT_DIR, output_name)
-            
-            clean_df.to_csv(save_path, index=False)
-            print(f"   -> Đã lưu tại: {save_path}")
+            all_data.append(clean_df)            
             
         except Exception as e:
             print(f"Lỗi khi xử lý file {file_path}: {e}")
+
+    if all_data:
+        combined_df = pd.concat(all_data, ignore_index=True)
+        combined_df = combined_df.drop_duplicates(subset=['symbol', 'date'], keep='last')
+        combined_df = combined_df.sort_values(by=['symbol', 'date'])
+        
+        output_name = 'GOOG_cleaned.csv'
+        save_path = os.path.join(OUTPUT_DIR, output_name)
+        combined_df.to_csv(save_path, index=False)
+        print(f"   -> Đã lưu tại: {save_path}")
 
 print("Hoàn tất quá trình Transform.")
     
