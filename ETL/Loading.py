@@ -30,8 +30,11 @@ for file in csv_files:
         df.columns = [c.capitalize() for c in df.columns]
 
         # Chuẩn hoá cột ngày
-        df["Date"] = pd.to_datetime(df["Date"], utc=True, errors="coerce").dt.strftime("%Y-%m-%d")
-            
+        try:
+            df["Date"] = pd.to_datetime(df["Date"], utc=True, errors="coerce").dt.tz_localize(None).dt.normalize()
+        except Exception as e:
+            print(f"Lỗi: {e}")
+
         # Thêm vào danh sách tổng
         all_data.append(df)
     except Exception as e:

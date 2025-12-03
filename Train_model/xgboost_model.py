@@ -1,9 +1,9 @@
 import os
 import joblib
+import argparse
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from datetime import timedelta
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import RobustScaler
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_absolute_error, mean_squared_error, r2_score
@@ -15,11 +15,6 @@ warnings.filterwarnings('ignore')
 # Walk-forward: expanding, non-overlapping test windows
 # -----------------------------
 def expanding_non_overlapping_validation(df, feature_cols, n_splits=4, min_train_size=252):
-    """Create non-overlapping expanding walk-forward splits.
-    Each fold: train = [0:train_end), test = [train_end:train_end+test_size)
-    test_size chosen so that last fold ends at end of dataset.
-    Returns metrics aggregated across folds and predictions per fold.
-    """
     N = len(df)
     # Ensure we have enough data
     if N < min_train_size * 2:
@@ -44,9 +39,9 @@ def expanding_non_overlapping_validation(df, feature_cols, n_splits=4, min_train
     metrics_reg = {'mae':[], 'rmse':[], 'r2':[], 'direction_acc':[]}
     fold_preds = []
 
-    for i,(ts,te,ss,se) in enumerate(folds,1):
-        train = df.iloc[ts:te].dropna()
-        test = df.iloc[ss:se].dropna()
+    for i,(train_start, train_end, test_start, test_end) in enumerate(folds,1):
+        train = df.iloc[train_start:train_end]
+        test = df.iloc[test_start:test_end]
         if len(train) < min_train_size or len(test) == 0:
             continue
 
@@ -64,14 +59,17 @@ def expanding_non_overlapping_validation(df, feature_cols, n_splits=4, min_train
         X_test_s = scaler.transform(X_test)
 
         # Train models
-        clf = xgb.XGBClassifier(n_estimators=200, max_depth=5, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
-        reg = xgb.XGBRegressor(n_estimators=200, max_depth=6, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, objective='reg:squarederror', n_jobs=-1)
+        clf = xgb.XGBClassifier(n_estimators=1000, max_depth=6, learning_rate=0.02, subsample=0.8, colsample_bytree=0.8, use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
+        reg = xgb.XGBRegressor(n_estimators=1000, max_depth=6, learning_rate=0.02, subsample=0.8, colsample_bytree=0.8, objective='reg:squarederror', n_jobs=-1)
 
         clf.fit(X_train_s, y_train_clf)
         reg.fit(X_train_s, y_train_reg)
 
         yhat_clf = clf.predict(X_test_s)
-        yhat_proba = clf.predict_proba(X_test_s)[:,1] if hasattr(clf,'predict_proba') else None
+        if hasattr(clf,'predict_proba'):
+            yhat_proba = clf.predict_proba(X_test_s)[:,1]  
+        else:
+            yhat_proba = None
         yhat_reg = reg.predict(X_test_s)
 
         # Store fold metrics
@@ -93,12 +91,12 @@ def expanding_non_overlapping_validation(df, feature_cols, n_splits=4, min_train
         fold_preds.append({'index': X_test.index, 'clf': yhat_clf, 'proba': yhat_proba, 'reg': yhat_reg})
 
         print(f"--- Fold {i}/{len(folds)} ---")
-        print(f"Train: {ts} to {te-1}, Test: {ss} to {se-1}, Test rows: {len(test)}")
+        print(f"Train: {train_start} to {train_end-1}, Test: {test_start} to {test_end-1}, Test rows: {len(test)}")
         print(f"Classification Acc: {metrics_clf['accuracy'][-1]:.4f}, Direction Acc (reg): {dir_acc:.4f}")
 
     return metrics_clf, metrics_reg, fold_preds
 
-def backtest_realistic(df, signals, entry_delay='next_open', transaction_cost=0.001):
+def backtest_realistic(df, signals, entry_delay='next_open', transaction_cost=0.002):
     """df must be indexed by date and contain 'open' and 'close' and 'return'.
     signals is aligned to df.index and indicates model decision at end of day t using info up to t (i.e. predict t+1):
       1 -> buy at next open (enter long at open_{t+1})
@@ -205,8 +203,8 @@ def train_and_save_models(source_path='../Dataset/Cleaned/GOOG_cleaned.csv', mod
         print(f"Regressor {k}: {np.mean(v):.4f} (+/- {np.std(v):.4f})")
 
     split_idx = int(len(df) * 0.8)
-    train = df.iloc[:split_idx].dropna()
-    test = df.iloc[split_idx:].dropna()
+    train = df.iloc[:split_idx]
+    test = df.iloc[split_idx:]
 
     X_train = train[feature_cols]
     y_train_clf = train['Next_Direction']
@@ -217,10 +215,10 @@ def train_and_save_models(source_path='../Dataset/Cleaned/GOOG_cleaned.csv', mod
     X_train_s = scaler.fit_transform(X_train)
     X_test_s = scaler.transform(X_test)
 
-    clf = xgb.XGBClassifier(n_estimators=200, max_depth=5, learning_rate=0.05, 
+    clf = xgb.XGBClassifier(n_estimators=1000, max_depth=5, learning_rate=0.02, 
                            subsample=0.8, colsample_bytree=0.8, 
                            use_label_encoder=False, eval_metric='logloss', n_jobs=-1)
-    reg = xgb.XGBRegressor(n_estimators=200, max_depth=6, learning_rate=0.05, 
+    reg = xgb.XGBRegressor(n_estimators=1000, max_depth=6, learning_rate=0.02, 
                           subsample=0.8, colsample_bytree=0.8, 
                           objective='reg:squarederror', n_jobs=-1)
 
@@ -238,11 +236,11 @@ def train_and_save_models(source_path='../Dataset/Cleaned/GOOG_cleaned.csv', mod
     print(fi.head(15).to_string(index=False))
 
     test_proba = clf.predict_proba(X_test_s)[:,1]
-    threshold = 0.45
+    threshold = 0.5
     test_signals = np.where(test_proba >= threshold, 1, 0)
 
     print('[3/3] Backtesting on held-out test set...')
-    backtest_results = backtest_realistic(test, test_signals, transaction_cost=0.001)
+    backtest_results = backtest_realistic(test, test_signals, transaction_cost=0.002)
 
     print('\nBACKTEST RESULTS (Test Set)')
     print(f"Strategy Return: {backtest_results['total_return']*100:+.2f}%")
@@ -270,7 +268,6 @@ def train_and_save_models(source_path='../Dataset/Cleaned/GOOG_cleaned.csv', mod
         }
 
 if __name__ == '__main__':
-    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', type=str, default='../Dataset/Cleaned/GOOG_cleaned.csv')
     parser.add_argument('--model_dir', type=str, default='./models')

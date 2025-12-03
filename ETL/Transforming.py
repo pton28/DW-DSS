@@ -21,16 +21,16 @@ def basic_cleaning(df):
     for col in date_cols:
         df[col] = pd.to_datetime(df[col], utc=True).dt.date # Bỏ múi giờ cho sạch
 
-    # 3. Sắp xếp TRƯỚC khi fillna (QUAN TRỌNG)
+    # 3. Giữ lại các cột cần thiết
+    keep_cols = ["date", "symbol", "open", "high", "low", "close", "volume"]
+    df = df[[c for c in keep_cols if c in df.columns]]
+    # 4. Sắp xếp TRƯỚC khi fillna (QUAN TRỌNG)
     if 'date' in df.columns:
         df = df.sort_values(by=['date'], ascending=True)
 
-    # 4. Xóa duplicates
+    # 5. Xóa duplicates
     df = df.drop_duplicates()
-
-    # 5. Xử lý NaN (Chỉ fill giá/volume, không fill chỉ báo sau này)
-    df = df.ffill() 
-    
+        
     return df
 
 
@@ -183,6 +183,8 @@ else:
             
             # 2. Làm sạch cơ bản
             clean_df = basic_cleaning(df)
+            
+            # 3. XỬ LÝ RIÊNG: Fill cột Symbol nếu thiếu
             clean_df = inject_symbol_if_missing(clean_df, file_path)
 
             # 4. Tạo Feature (Lúc này chắc chắn đã có symbol)
