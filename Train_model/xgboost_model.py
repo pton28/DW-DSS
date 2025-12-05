@@ -16,7 +16,6 @@ warnings.filterwarnings('ignore')
 # -----------------------------
 def expanding_non_overlapping_validation(df, feature_cols, n_splits=4, min_train_size=252):
     N = len(df)
-    # Ensure we have enough data
     if N < min_train_size * 2:
         raise ValueError('Not enough data for walk-forward')
 
@@ -236,7 +235,7 @@ def train_and_save_models(source_path='../Dataset/Cleaned/GOOG_cleaned.csv', mod
     print(fi.head(15).to_string(index=False))
 
     test_proba = clf.predict_proba(X_test_s)[:,1]
-    threshold = 0.5
+    threshold = 0.45
     test_signals = np.where(test_proba >= threshold, 1, 0)
 
     print('[3/3] Backtesting on held-out test set...')
