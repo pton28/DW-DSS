@@ -9,7 +9,7 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 from Extracting import extract_data
-from transform import transform_data
+from Trainsforming import transform_data
 from Loading import run_loading_pipeline
 
 # -----------------------------------------

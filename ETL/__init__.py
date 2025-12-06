@@ -8,7 +8,7 @@ __author__ = "PT"
 
 # Import main functions for easier access
 from .Extracting import extract_data
-from .transform import transform_data
+from .Trainsforming import transform_data
 from .Loading import run_loading_pipeline
 
 __all__ = [
