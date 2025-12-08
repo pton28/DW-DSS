@@ -1,6 +1,6 @@
 # 📊 DW-DSS: Data Warehouse & Decision Support System for Stock Price Forecasting
 
-Hệ thống **kho dữ liệu tích hợp** cho dự báo giá cổ phiếu sử dụng **ETL Pipeline**, **Machine Learning** (XGBoost), và **Monte Carlo Simulation**.
+Hệ thống **kho dữ liệu tích hợp** cho dự báo giá cổ phiếu sử dụng **ETL Pipeline**, **Machine Learning** (Linear Regression), và **Monte Carlo Simulation**.
 
 ---
 
@@ -20,7 +20,7 @@ DW-DSS/
 │   │   ├── cash_flow_cleaned.csv
 │   │   ├── income_statement_cleaned.csv
 │   │   ├── prices_cleaned.csv
-│   │   └── GOOG_cleaned.csv            # 🔑 Dữ liệu chính (1259 rows, 57 features)
+│   │   └── GOOG_cleaned.csv            
 │   └── Gold/                            # Gold: Dữ liệu chuẩn hóa (Star Schema)
 │       ├── Dims/                        # Bảng Dimension
 │       │   ├── dim_company.csv
@@ -37,22 +37,18 @@ DW-DSS/
 │
 ├── 📂 ETL/                              # Pipeline Trích xuất → Chuyển đổi → Nạp
 │   ├── Extracting.py                    # 🔹 Tải dữ liệu từ Yahoo Finance API
-│   ├── Transforming.py                  # 🔹 Làm sạch + Feature Engineering (60+ indicators)
+│   ├── Transforming.py                  # 🔹 Làm sạch + Feature Engineering
 │   ├── Loading.py                       # 🔹 Hợp nhất + Lưu vào warehouse
 │   └── Run_ETL.py                       # 🔹 Điều phối chạy toàn bộ pipeline
 │
 ├── 📂 Train_model/                      # Machine Learning & Prediction
-│   ├── xgboost_model.py                 # 🔹 Huấn luyện XGBoost (classifier + regressor)
-│   │                                    #    - Walk-forward expanding validation
-│   │                                    #    - Backtest với realistic execution
-│   ├── predict.py                       # 🔹 Dự báo giá (Monte Carlo 1000 simulations)
+│   ├── predict_model.py                 # 🔹 Huấn luyện Linear Regression
+│   ├── predict.py                       # 🔹 Dự báo giá (Monte Carlo 2000 simulations)
 │   │                                    #    - Tương tác nhập n ngày
-│   │                                    #    - Vẽ biểu đồ 1000 paths + trung bình
+│   │                                    #    - Vẽ biểu đồ 2000 paths + trung bình
 │   │                                    #    - Thống kê (trung bình, percentile 5%-95%)
-│   ├── predict_model.py                 # Các hàm hỗ trợ dự báo
-│   ├── xgb_classifier.joblib            # Model phân loại hướng giá (BUY/SELL)
-│   ├── xgb_regressor.joblib             # Model hồi quy giá
-│   ├── scaler.joblib                    # RobustScaler cho feature normalization
+│   ├── best_stock_price_model.pkl       # Model hồi quy giá
+│   ├── __init__.py                      # RobustScaler cho feature normalization
 │   └── Image/                           # Hình ảnh mô hình/biểu đồ
 │
 ├── 📂 streamlit/                        # Dashboard & Visualization
@@ -322,8 +318,7 @@ pip install -r requirements.txt --upgrade
 
 - ✅ ETL Pipeline: Hoàn tất
 - ✅ Feature Engineering: 60+ indicators
-- ✅ XGBoost Training: Walk-forward validation
-- ✅ Monte Carlo Prediction: 1000 simulations + visualization
+- ✅ Monte Carlo Prediction: 2000 simulations + visualization
 - ✅ Streamlit Dashboard: Web UI
 - 🔲 API REST: (Tương lai)
 - 🔲 Real-time prediction: (Tương lai)
