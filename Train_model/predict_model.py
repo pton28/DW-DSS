@@ -52,38 +52,41 @@ models = {
 best_model_name = None
 best_score = float('inf')
 results = {}
+results_list = []
 
 print("\n📊 Bắt đầu huấn luyện...")
 
 for name, model in models.items():
-    # Train
     model.fit(X_train, y_train)
-    
-    # Predict
     preds = model.predict(X_test)
     
-    # Evaluate
     mae = mean_absolute_error(y_test, preds)
     rmse = np.sqrt(mean_squared_error(y_test, preds))
     mape = np.mean(np.abs((y_test - preds) / y_test)) * 100
     r2 = r2_score(y_test, preds)
     da = directional_accuracy(y_test.values, preds) * 100
-    score = rmse*0.5 + (100-da*100)*0.3 + mape*0.2
+    score = rmse*0.5 + (100-da)*0.3 + mape*0.2
     
     results[name] = preds
-    print(f"\n📌 {name}")
-    print(f"   MAE     = {mae:.4f}")
-    print(f"   RMSE    = {rmse:.4f}")
-    print(f"   MAPE    = {mape:.2f}%")
-    print(f"   R-Squared     = {r2:.4f}")
-    print(f"   DA      = {da:.2f}%")
-    print(f"   SCORE      = {score:.2f}%")
+    results_list.append({
+        "Model": name,
+        "MAE": mae,
+        "RMSE": rmse,
+        "MAPE (%)": mape,
+        "R²": r2,
+        "DA (%)": da,
+        "Score": score
+    })
     
-    # Tìm model tốt nhất
     if score < best_score:
         best_score = score
         best_model_name = name
         best_model_obj = model
+        
+df_results = pd.DataFrame(results_list)
+df_results = df_results.sort_values(by="Score")
+print("\nBẢNG SO SÁNH MÔ HÌNH:")
+print(df_results)
 
 # --- 4. LƯU MODEL TỐT NHẤT ---
 print(f"\n🏆 Model tốt nhất: {best_model_name} (RMSE={best_score:.2f})")

@@ -16,7 +16,6 @@ CLEANED_DIR.mkdir(parents=True, exist_ok=True)
 # -------------------------------------------------
 def normalize_columns(df):
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
-    df
     return df
 
 def convert_date(df, column_name):

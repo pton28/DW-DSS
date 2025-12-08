@@ -1,3 +1,4 @@
+``
 DW-DSS/
 ├── Data_warehouse/      # Nơi chứa dữ liệu cuối cùng (Gold Zone)
 │   ├── all_stocks.csv   # File tổng hợp tất cả mã cổ phiếu
@@ -14,6 +15,7 @@ DW-DSS/
 ├── check.py             # Script kiểm tra nhanh dữ liệu/môi trường
 ├── requirement.txt      # Danh sách các thư viện cần thiết
 └── README.md            # Tài liệu hướng dẫn
+``
 
 🛠️ Quy trình ETL (Extract - Transform - Load)
 
