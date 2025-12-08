@@ -59,7 +59,6 @@ def preprocess_dataframe(df):
 
     return df
 
-
 # -----------------------------------------
 # ETL Pipeline Validation
 # -----------------------------------------

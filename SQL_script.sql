@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS dim_date (
     month INTEGER,
     month_name VARCHAR,
     quarter VARCHAR,
-    year INTEGER
+    year INTEGER,
+    day_of_week INTEGER,
+    is_weekend BOOLEAN
 );
 
 ------------------------------------------------------------

@@ -129,8 +129,10 @@ def build_dim_date(prices, bs, inc, cf):
     df['month_name'] = df['date'].dt.month_name()
     df['quarter'] = "Q" + df['date'].dt.quarter.astype(str)
     df['year'] = df['date'].dt.year
+    df['day_of_week'] = df['date'].dt.dayofweek + 1
+    df['is_weekend'] = df['day_of_week'].isin([6, 7])
     
-    result = df[['date_key', 'date', 'day', 'month', 'month_name', 'quarter', 'year']]
+    result = df[['date_key', 'date', 'day', 'month', 'month_name', 'quarter', 'year', 'day_of_week', 'is_weekend']]
     logger.info(f"   ✓ Built dim_date: {len(result):,} unique dates "
                 f"(from {result['date'].min().date()} to {result['date'].max().date()})")
     return result
@@ -194,6 +196,45 @@ def build_dim_fin_metric(bs, inc, cf):
     
     logger.info(f"   ✓ Built dim_fin_metric: {len(result)} metrics")
     return result
+
+def build_dim_fin_statement_type():
+    """Build financial statement type dimension from CONSTANT"""
+    logger.info("   Building dim_fin_statement_type...")
+    
+    # Dữ liệu từ hằng số FIN_TYPE_MAPPING
+    data = []
+    descriptions = {
+        "balance_sheet": "Balance Sheet",
+        "income_statement": "Income Statement",
+        "cash_flow": "Cash Flow Statement"
+    }
+    
+    for name, key in FIN_TYPE_MAPPING.items():
+        data.append({
+            "fin_type_key": key,
+            "statement_type": name,
+            "description": descriptions.get(name, name)
+        })
+        
+    df = pd.DataFrame(data)
+    logger.info(f"   ✓ Built dim_fin_statement_type: {len(df)} types")
+    return df
+
+def build_dim_stock_metric():
+    """Build stock metric dimension from CONSTANT"""
+    logger.info("   Building dim_stock_metric...")
+    
+    # Dữ liệu từ hằng số STOCK_METRIC_MAPPING
+    data = []
+    for name, key in STOCK_METRIC_MAPPING.items():
+        data.append({
+            "stock_metric_key": key,
+            "metric_name": name
+        })
+        
+    df = pd.DataFrame(data)
+    logger.info(f"   ✓ Built dim_stock_metric: {len(df)} metrics")
+    return df
 
 # ---------------------------------------------------------
 # BUILD FACT TABLES
@@ -293,10 +334,10 @@ def load_gold_and_dw(conn, df, name):
     """Save to Gold layer and insert into Data Warehouse"""
     try:
         # Determine output directory
-        gold_path = DIM_DIR / f"{name}.parquet" if name.startswith("dim") else FACT_DIR / f"{name}.parquet"
+        gold_path = DIM_DIR / f"{name}.csv" if name.startswith("dim") else FACT_DIR / f"{name}.csv"
         
         # Save to Gold
-        df.to_parquet(gold_path, index=False)
+        df.to_csv(gold_path, index=False)
         logger.info(f"   💾 Saved to Gold: {gold_path.relative_to(BASE_DIR)}")
         
         # Insert to DW
@@ -319,19 +360,19 @@ def verify_gold_layer():
     logger.info("\n🔍 Verifying Gold Layer...")
     
     logger.info("   📁 Dims folder:")
-    dim_files = list(DIM_DIR.glob("*.parquet"))
+    dim_files = list(DIM_DIR.glob("*.csv"))
     if dim_files:
         for f in sorted(dim_files):
-            df = pd.read_parquet(f)
+            df = pd.read_csv(f)
             logger.info(f"      - {f.name:30s}: {len(df):6,} rows")
     else:
         logger.warning("      No dimension files found")
     
     logger.info("   📁 Facts folder:")
-    fact_files = list(FACT_DIR.glob("*.parquet"))
+    fact_files = list(FACT_DIR.glob("*.csv"))
     if fact_files:
         for f in sorted(fact_files):
-            df = pd.read_parquet(f)
+            df = pd.read_csv(f)
             logger.info(f"      - {f.name:30s}: {len(df):6,} rows")
     else:
         logger.warning("      No fact files found")
@@ -348,7 +389,8 @@ def verify_data_warehouse(conn):
     
     tables = [
         "dim_date", "dim_company", "dim_fin_metric",
-        "fact_finance", "fact_stock_prices"
+        "fact_finance", "fact_stock_prices",
+        "dim_fin_statement_type", "dim_stock_metric"
     ]
     
     total_rows = 0
@@ -376,20 +418,20 @@ def run_loading_pipeline():
         logger.info("📂 Loading cleaned data...")
 
         required_files = {
-            "balance_sheet": CLEANED_DIR / "balance_sheet.parquet",
-            "income_statement": CLEANED_DIR / "income_statement.parquet",
-            "cash_flow": CLEANED_DIR / "cash_flow.parquet",
-            "prices": CLEANED_DIR / "prices.parquet"
+            "balance_sheet": CLEANED_DIR / "balance_sheet_cleaned.csv",
+            "income_statement": CLEANED_DIR / "income_statement_cleaned.csv",
+            "cash_flow": CLEANED_DIR / "cash_flow_cleaned.csv",
+            "prices": CLEANED_DIR / "prices_cleaned.csv"
         }
 
         for name, path in required_files.items():
             if not path.exists():
                 raise FileNotFoundError(f"Required file not found: {path}")
         
-        bs = pd.read_parquet(required_files["balance_sheet"])
-        inc = pd.read_parquet(required_files["income_statement"])
-        cf = pd.read_parquet(required_files["cash_flow"])
-        prices = pd.read_parquet(required_files["prices"])
+        bs = pd.read_csv(required_files["balance_sheet"])
+        inc = pd.read_csv(required_files["income_statement"])
+        cf = pd.read_csv(required_files["cash_flow"])
+        prices = pd.read_csv(required_files["prices"])
         
         logger.info("✅ All cleaned data loaded successfully\n")
 
@@ -407,6 +449,8 @@ def run_loading_pipeline():
         dim_date = build_dim_date(prices, bs, inc, cf)
         dim_company = build_dim_company(bs, inc, cf)
         dim_fin_metric = build_dim_fin_metric(bs, inc, cf)
+        dim_fin_statement_type = build_dim_fin_statement_type()
+        dim_stock_metric = build_dim_stock_metric()
         
         logger.info("✅ All dimensions built\n")
 
@@ -426,6 +470,8 @@ def run_loading_pipeline():
             load_gold_and_dw(conn, dim_date, "dim_date")
             load_gold_and_dw(conn, dim_company, "dim_company")
             load_gold_and_dw(conn, dim_fin_metric, "dim_fin_metric")
+            load_gold_and_dw(conn, dim_fin_statement_type, "dim_fin_statement_type")
+            load_gold_and_dw(conn, dim_stock_metric, "dim_stock_metric")
             
             logger.info("\nLoading fact tables...")
             load_gold_and_dw(conn, fact_fin, "fact_finance")

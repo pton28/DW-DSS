@@ -133,11 +133,11 @@ def transform_data(raw):
 
 def save_cleaned_data(transformed):
     """Lưu dữ liệu đã transform vào thư mục Cleaned"""
-    logger.info("Saving cleaned data to parquet files...")
+    logger.info("Saving cleaned data to csv files...")
     
     for name, df in transformed.items():
-        output_path = CLEANED_DIR / f"{name}.parquet"
-        df.to_parquet(output_path, index=False)
+        output_path = CLEANED_DIR / f"{name}_cleaned.csv"
+        df.to_csv(output_path, index=False)
         logger.info(f"Saved {name} → {output_path}")
     
     logger.info("All cleaned data saved successfully.")

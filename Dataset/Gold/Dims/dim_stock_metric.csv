@@ -1,0 +1,10 @@
+stock_metric_key,metric_name
+1,open
+2,high
+3,low
+4,close
+5,volume
+6,pct_change
+7,daily_return
+8,volatility_5d
+9,volatility_20d

@@ -1,0 +1,4 @@
+fin_type_key,statement_type,description
+1,balance_sheet,Balance Sheet
+2,income_statement,Income Statement
+3,cash_flow,Cash Flow Statement
